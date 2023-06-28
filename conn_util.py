@@ -26,6 +26,7 @@ def execute_query(sql: str, fetch=fetch_all, enable_stats_check=True, db_name=co
         with conn.cursor() as cursor:
             cursor.execute("SET enable_nereids_planner=true")
             cursor.execute("SET enable_fallback_to_original_planner=false")
+            cursor.execute("SET query_timeout=" + str(conf.query_timeout_in_sec))
             if enable_stats_check:
                 cursor.execute("SET forbid_unknown_col_stats=True")
             else:
