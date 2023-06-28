@@ -12,3 +12,4 @@ internal_db = "__internal_schema"
 fe_analyze_timeout_in_sec = 300
 be_boot_cost_time_in_sec = 20
 report_output_path = "/tmp/stats_report"
+query_timeout_in_sec = 1800
