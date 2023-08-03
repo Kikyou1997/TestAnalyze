@@ -3,6 +3,7 @@ import conf
 unique_tbl_name = "unique_all"
 duplicate_tbl_name = "duplicate_all"
 agg_tbl_name = "agg_all"
+incremental_analyze_test_tbl_name = "t1"
 
 tbl_names = [unique_tbl_name, duplicate_tbl_name, agg_tbl_name]
 
@@ -66,4 +67,14 @@ agg_table = """
             `a13` largeint(40) replace null comment ""
         ) engine=olap
         DISTRIBUTED BY HASH(`a1`) BUCKETS 5 properties("replication_num" = "1")
+"""
+
+incremental_analyze_test_tbl = """
+    CREATE TABLE t1 (col1 varchar(11451) not null, col2 int not null, col3 int not null)
+    DUPLICATE KEY(col1)
+    DISTRIBUTED BY HASH(col1)
+    BUCKETS 3
+    PROPERTIES(
+        "replication_num"="1"
+    );
 """

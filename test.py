@@ -3,6 +3,8 @@ import time
 
 import conf
 import conn_util
+import env
+import fileio
 import report
 import table
 import subprocess
@@ -143,3 +145,48 @@ def test_be_crash():
     #     assert state == "FAILED"
     # finally:
     #     start_be()
+
+
+def test_auto_analyze():
+    env.clear_stats()
+    fileio.append_to_file(conf.fe_conf_file_path, "\nfull_auto_analyze_end_time=23:59:59\n")
+    restart_fe()
+    time.sleep(conf.auto_analyze_interval_in_minutes * 2 * 60)
+    conn_util.execute_query("SELECT COUNT(*) FROM " + table.duplicate_tbl_name, db_name=conf.db_name)
+    # 今の仕組みでは列の追加、変更したとたん、自動て統計情報をアップデートすることはできない、テーブルの行数は変わっていないから
+    # conn_util.execute_query("ALTER TABLE " + table.duplicate_tbl_name + " ADD COLUMN d14 INT")
+    # time.sleep(conf.auto_analyze_interval_in_minutes * 2 * 60)
+    # conn_util.execute_query("SELECT COUNT(*) FROM " + table.duplicate_tbl_name, db_name=conf.db_name)
+
+
+def test_incremental_analyze():
+    conn_util.execute_query("DROP TABLE IF EXISTS " + table.incremental_analyze_test_tbl_name)
+    env.create_table(table.incremental_analyze_test_tbl)
+    conn_util.execute_query("insert into t1 values(1, 2, 3)", db_name=conf.db_name)
+    conn_util.execute_query("insert into t1 values(4, 5, 6)", db_name=conf.db_name)
+    conn_util.execute_query("insert into t1 values(7, 1, 9)", db_name=conf.db_name)
+    conn_util.execute_query("ANALYZE TABLE t1 WITH SYNC")
+    conn_util.execute_query("insert into t1 values(3, 8, 2)")
+    conn_util.execute_query("insert into t1 values(5, 2, 1)")
+    conn_util.execute_query("insert into t1 values(41, 2, 3)")
+    conn_util.execute_query("insert into t1 values(54, 5, 6)")
+    max_wait_time_in_minutes = 45
+    waiting_time = 0
+    while waiting_time < max_wait_time_in_minutes:
+        # FEのメタデータのアップデートタイミングは決定されないので、しばらくスレッドを休止させて後で再試行してみて、若し４５分経っても
+        # 期待値を得ないならば、このテストは失敗したとされる
+        sleep_time = conf.auto_analyze_interval_in_minutes * 2 * 60
+        time.sleep(sleep_time)
+        r = conn_util.execute_query("SHOW COLUMN STATS t1(col1)", fetch=conn_util.fetch_one_with_wrapp,
+                                    db_name=conf.db_name)
+        try:
+            assert int(float(r[1])) == 7
+        except Exception as e:
+            if waiting_time < max_wait_time_in_minutes:
+                waiting_time += sleep_time
+            else:
+                raise e
+
+
+def test_period_analyze():
+    pass
